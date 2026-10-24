@@ -1,4 +1,4 @@
-"""Shared build helpers for the custom CUDA ops of the max tier.
+"""Shared build helpers for the custom CUDA ops of the cuda-kernels tier.
 
 Extensions are JIT-compiled once per source hash and GPU arch with torch.utils.cpp_extension into the user cache
 (``$FVM_CACHE`` or ``~/.cache/fast-vision-models``); nothing is compiled per input size. The CUTLASS headers are not
@@ -32,7 +32,7 @@ def cutlass_include():
     root = os.environ.get("CUTLASS_DIR")
     if not root or not os.path.isdir(os.path.join(root, "include", "cutlass")):
         raise RuntimeError(
-            "The max tier needs the CUTLASS headers: git clone https://github.com/NVIDIA/cutlass and set CUTLASS_DIR "
+            "The cuda-kernels tier needs the CUTLASS headers: git clone https://github.com/NVIDIA/cutlass and set CUTLASS_DIR "
             "(or use the portable tier)."
         )
     return os.path.join(root, "include")

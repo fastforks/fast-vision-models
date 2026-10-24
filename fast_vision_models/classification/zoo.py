@@ -1,10 +1,10 @@
 """ImageNet-1k classification model registry.
 
     from fast_vision_models.classification import zoo
-    m = zoo.load("resnet50", impl="max")   # -> Loaded(model, transform, input_size, spec, info)
+    m = zoo.load("resnet50", impl="cuda-kernels")   # -> Loaded(model, transform, input_size, spec, info)
     logits = m.model(x)                              # x: [B, 3, H, W] float32, normalized (m.transform output)
 
-impl ("upstream" / "portable" / "max" are aliases of base / friendly / opt): "base" = upstream fp32 eager (torchvision / timm / HF defaults, no cudnn.benchmark),
+impl ("upstream" / "portable" / "cuda-kernels" (old name "max") are aliases of base / friendly / opt): "base" = upstream fp32 eager (torchvision / timm / HF defaults, no cudnn.benchmark),
       "friendly" = upstream-friendly general path (plain PyTorch, exportable changes only),
       "opt"  = max general fast path from classification/fast (any batch / size, nothing compiled or tuned per size).
 Every model maps a preprocessed fp32 NCHW batch to 1000 ImageNet logits (index order = sorted WordNet ids).
@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 
 import torch
 
-ALIASES = {"upstream": "base", "portable": "friendly", "max": "opt"}
+ALIASES = {"upstream": "base", "portable": "friendly", "cuda-kernels": "opt", "max": "opt"}
 
 
 @dataclass

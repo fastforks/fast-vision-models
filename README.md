@@ -10,22 +10,22 @@ Each model comes in four tiers:
 | **upstream (fp32)** | the official model code (timm, torchvision, Hugging Face transformers, mmsegmentation, DINOv2) with PyTorch defaults | yes |
 | **upstream + flags** | the same unmodified code with the simple switches listed below | yes |
 | **portable** | our plain-PyTorch implementation: BatchNorm / LayerScale folding, fp16 weights and activations, channels-last, SDPA attention, packed QKV and fused linear algebra | yes |
-| **max** | portable plus custom CUDA kernels: CUTLASS fused conv / GEMM epilogues, depthwise, pooling and norm kernels, flash attention for head_dim 64 ([fastbb](https://github.com/fastforks/fastbb)), fused RoPE, TorchScript tracing | no |
+| **cuda-kernels** | portable plus custom CUDA kernels: CUTLASS fused conv / GEMM epilogues, depthwise, pooling and norm kernels, flash attention for head_dim 64 ([fastbb](https://github.com/fastforks/fastbb)), fused RoPE, TorchScript tracing | no |
 
 All tiers work for any batch size and input size. Nothing is compiled or autotuned per size, except the cuDNN autotuning
-of the flags row and the CUDA graphs of the DINOv3 ViT max tier (one graph per input shape).
+of the flags row and the CUDA graphs of the DINOv3 ViT cuda-kernels tier (one graph per input shape).
 
 ## Quick start
 
 ```bash
-pip install -e ".[classification]"          # or [segmentation], [backbones]; add [max] for the custom kernels
-export CUTLASS_DIR=/path/to/cutlass         # max tier only: CUTLASS headers (v4.x), the kernels build on first use
+pip install -e ".[classification]"          # or [segmentation], [backbones]; add [cuda-kernels] for the custom kernels
+export CUTLASS_DIR=/path/to/cutlass         # cuda-kernels tier only: CUTLASS headers (v4.x), the kernels build on first use
 ```
 
 ```python
 import torch
 from fast_vision_models.classification import zoo
-m = zoo.load("resnet50", "max")                     # tiers: upstream | portable | max
+m = zoo.load("resnet50", "cuda-kernels")                     # tiers: upstream | portable | cuda-kernels
 logits = m.model(torch.randn(8, 3, 224, 224, device="cuda"))
 
 from fast_vision_models.segmentation import zoo as seg
@@ -34,12 +34,12 @@ w = seg.build("segformer-b0", "portable")
 labels = classmap(w, x)                             # x: normalized [1, 3, H, W] fp32 (w.norm), labels: [1, H, W]
 
 from fast_vision_models import backbones
-b = backbones.build("dinov2-vitl14", "max")
+b = backbones.build("dinov2-vitl14", "cuda-kernels")
 tokens = b.fn(x)                                    # [B, HW/14², 1024] normalized patch tokens
 ```
 
 Requirements: an NVIDIA GPU with fp16 tensor cores (sm_80 or newer), PyTorch 2.8 or newer, and CUDA_HOME pointing to an
-nvcc that matches the CUDA version of your PyTorch build (max tier). Weights are downloaded from the official sources on
+nvcc that matches the CUDA version of your PyTorch build (cuda-kernels tier). Weights are downloaded from the official sources on
 first use. `FVM_WEIGHTS` (directories, `:`-separated) points at checkpoints you already have.
 
 | family | models | names |
@@ -63,14 +63,14 @@ any tier.
 - Times are GPU latency in ms: the median of 30 runs (classification b1), 10 (b64, backbones) or 20 (segmentation),
   after a warm-up.
 - Peak memory is the PyTorch allocator peak, allocated / reserved, in MB, weights included.
-- The speed-up columns divide the upstream and flags times by the max time.
+- The speed-up columns divide the upstream and flags times by the cuda-kernels time.
 - Quality compares each tier's output with upstream fp32:
   - classification: top-1 agreement in % on 256 ImageNet val images;
   - segmentation: pixel agreement in % on 12 ADE20K val images, or on Cityscapes-sized inputs for unet-s5, pidnet-l
     and ddrnet-23;
   - backbones: relative L2 error of the output features.
-- ¹ marks rows where the portable tier is faster than max. For those models, use portable.
-- ² marks max paths that this package fixed after the cited measurements, so the max ms and MB columns come from the new
+- ¹ marks rows where the portable tier is faster than cuda-kernels. For those models, use portable.
+- ² marks cuda-kernels paths that this package fixed after the cited measurements, so the cuda-kernels ms and MB columns come from the new
   `bench/bench.py` runs:
   - fastvit_sa24: the half2-accumulate depthwise kernel gave only 89.5 % top-1 agreement on the re-parameterized RepMixer
     blocks, so FastViT now uses the fp32-accumulate depthwise kernel.
@@ -82,16 +82,16 @@ any tier.
 - results/2026-10-12_segmentation_algo_only.md
 - results/2026-10-12_backbones_algo_only.md
 
-In those measurements the portable column ran with `cudnn.benchmark` switched on. In this package, portable and max run as
+In those measurements the portable column ran with `cudnn.benchmark` switched on. In this package, portable and cuda-kernels run as
 shipped: they set their own fp16-accumulate flags and leave `cudnn.benchmark` off.
 
-The max-tier quality and all startup numbers are new runs of `bench/bench.py` with this package:
+The cuda-kernels-tier quality and all startup numbers are new runs of `bench/bench.py` with this package:
 results/2026-10-23_bench.jsonl (measured 2026-10-23/24 with the code of the first commit; its `commit` field is "n/a" because the repository did not exist yet). The earlier zoo tables, with full-subset top-1 / mIoU and TensorRT numbers, are in results/
 as well.
 
 ### Classification
 
-| model | setting | upstream (fp32) ms | upstream + flags ms | portable ms | max ms | max vs flags | max vs upstream | peak MB alloc / res: upstream · flags · portable · max | flags precision | quality: flags / portable / max |
+| model | setting | upstream (fp32) ms | upstream + flags ms | portable ms | cuda-kernels ms | cuda-kernels vs flags | cuda-kernels vs upstream | peak MB alloc / res: upstream · flags · portable · cuda-kernels | flags precision | quality: flags / portable / cuda-kernels |
 |---|---|---|---|---|---|---|---|---|---|---|
 | alexnet | b1 | 0.89 | 0.598 | 0.635 | 0.42 | 1.42× | 2.12× | 270 / 278 · 154 / 170 · 150 / 152 · 155 / 162 | half | 99.6 / 99.6 / 99.2 |
 | alexnet | b64 | 9.52 | 3.33 | 3.45 | 1.99 | 1.67× | 4.78× | 465 / 630 · 350 / 394 · 256 / 278 · 298 / 304 | half | 99.6 / 99.6 / 99.2 |
@@ -152,7 +152,7 @@ as well.
 
 segnet uses random weights: it is a latency demo, so its agreement numbers only show the fp16 noise of an untrained net.
 
-| model | setting | upstream (fp32) ms | upstream + flags ms | portable ms | max ms | max vs flags | max vs upstream | peak MB alloc / res: upstream · flags · portable · max | flags precision | quality: flags / portable / max |
+| model | setting | upstream (fp32) ms | upstream + flags ms | portable ms | cuda-kernels ms | cuda-kernels vs flags | cuda-kernels vs upstream | peak MB alloc / res: upstream · flags · portable · cuda-kernels | flags precision | quality: flags / portable / cuda-kernels |
 |---|---|---|---|---|---|---|---|---|---|---|
 | fcn-r101 | 512x512 | 42 | 18.7 | 17.3 | 10.9 | 1.72× | 3.85× | 491 / 826 · 296 / 430 · 223 / 332 · 205 / 408 | half | 100.0 / 100.0 / 100.0 |
 | fcn-r101 | 1024x2048 | 374 | 160 | 158 | 82.1 | 1.95× | 4.56× | 1760 / 4112 · 1394 / 1830 · 790 / 1500 · 695 / 1048 | half | 100.0 / 100.0 / 100.0 |
@@ -191,11 +191,11 @@ segnet uses random weights: it is a latency demo, so its agreement numbers only 
 
 ### Backbones
 
-DINOv2 max uses the fastbb `hh` flash attention. The DINOv3 ViT max tier adds a CUDA graph per input shape. Its first
+DINOv2 cuda-kernels uses the fastbb `hh` flash attention. The DINOv3 ViT cuda-kernels tier adds a CUDA graph per input shape. Its first
 call at a new size includes the capture, which the "new size" column shows. ConvNeXt and timm CNNs use the fused CUTLASS
 convolutions plus a TorchScript trace.
 
-| model | setting | upstream (fp32) ms | upstream + flags ms | portable ms | max ms | max vs flags | max vs upstream | peak MB alloc / res: upstream · flags · portable · max | flags precision | quality: flags / portable / max |
+| model | setting | upstream (fp32) ms | upstream + flags ms | portable ms | cuda-kernels ms | cuda-kernels vs flags | cuda-kernels vs upstream | peak MB alloc / res: upstream · flags · portable · cuda-kernels | flags precision | quality: flags / portable / cuda-kernels |
 |---|---|---|---|---|---|---|---|---|---|---|
 | dinov2-vits14 | 896x1344 b1 | 131.26 | 23.73 | 23.46 | 16.66 | 1.42× | 7.88× | 295 / 408 · 155 / 190 · 172 / 190 · 239 / 276 | half | 0.0045 / 0.0044 / 0.0063 |
 | dinov2-vitb14 | 896x1344 b1 | 301.93 | 52.47 | 51.81 | 39.75 | 1.32× | 7.60× | 670 / 898 · 346 / 436 · 385 / 434 · 481 / 548 | half | 0.0077 / 0.0079 / 0.0116 |
@@ -238,7 +238,7 @@ These are new measurements with `bench/bench.py` (one process per model and tier
 - **startup**: process start to model ready. It includes `import torch`, CUDA init, the model build and loading weights
   from the local disk. Downloads and kernel compilation are excluded, because they are cached.
 - **first call**: the first call at size 1 minus the median. For the flags row this is mostly the `cudnn.benchmark`
-  autotuning. For max it is the trace and its validation. Portable and max run as shipped, without `cudnn.benchmark`.
+  autotuning. For cuda-kernels it is the trace and its validation. Portable and cuda-kernels run as shipped, without `cudnn.benchmark`.
 - **new size**: the same cost for the first call at size 2:
   - classification: b1 → b64;
   - segmentation: 512x512 → 1024x2048;
@@ -251,7 +251,7 @@ tables above for speed.
 
 **Classification**
 
-| model | startup s: upstream / flags / portable / max | first call s: upstream / flags / portable / max | new size s: upstream / flags / portable / max |
+| model | startup s: upstream / flags / portable / cuda-kernels | first call s: upstream / flags / portable / cuda-kernels | new size s: upstream / flags / portable / cuda-kernels |
 |---|---|---|---|
 | resnet50 | 2.3 / 2.2 / 2.3 / 2.4 | 0.22 / 1.76 / 0.26 / 0.22 | 0.00 / 0.78 / 0.02 / 0.00 |
 | alexnet | 2.8 / 2.5 / 3.2 / 2.5 | 0.16 / 0.38 / 0.14 / 0.16 | 0.03 / 0.18 / 0.00 / 0.00 |
@@ -283,7 +283,7 @@ tables above for speed.
 
 **Segmentation**
 
-| model | startup s: upstream / flags / portable / max | first call s: upstream / flags / portable / max | new size s: upstream / flags / portable / max |
+| model | startup s: upstream / flags / portable / cuda-kernels | first call s: upstream / flags / portable / cuda-kernels | new size s: upstream / flags / portable / cuda-kernels |
 |---|---|---|---|
 | segformer-b0 | 3.6 / 3.8 / 3.7 / 3.7 | 0.32 / 1.37 / 0.38 / 0.22 | 0.00 / 0.53 / 0.01 / 0.00 |
 | fcn-r101 | 4.8 / 5.3 / 6.2 / 5.3 | 0.24 / 1.20 / 0.21 / 0.12 | 0.01 / 1.64 / 0.00 / 0.00 |
@@ -305,7 +305,7 @@ tables above for speed.
 
 **Backbones**
 
-| model | startup s: upstream / flags / portable / max | first call s: upstream / flags / portable / max | new size s: upstream / flags / portable / max |
+| model | startup s: upstream / flags / portable / cuda-kernels | first call s: upstream / flags / portable / cuda-kernels | new size s: upstream / flags / portable / cuda-kernels |
 |---|---|---|---|
 | dinov2-vits14 | 1.4 / 1.3 / 1.2 / 1.0 | 0.14 / 0.17 / 0.16 / 0.16 | 0.00 / 0.01 / 0.00 / 0.00 |
 | timm-resnet18.a1_in1k | 2.2 / 2.3 / 2.4 / 2.3 | 0.21 / 0.91 / 0.22 / 0.12 | 0.00 / 0.48 / 0.00 / 0.03 |
@@ -331,7 +331,7 @@ tables above for speed.
 
 ```bash
 python bench/bench.py --family cls --model resnet50 --tier flags --out results/my_runs.jsonl
-python bench/bench.py --family seg --model mask2former-swinl --tier max
+python bench/bench.py --family seg --model mask2former-swinl --tier cuda-kernels
 python bench/bench.py --family bb --model dinov3-vitl16 --tier portable
 ```
 

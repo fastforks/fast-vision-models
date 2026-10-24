@@ -1,6 +1,6 @@
 """Segmentation model registry: build(name, impl) -> object with .logits(x), .norm, .protocol, .info (see common.py).
 
-impl names: "upstream" (= "base"), "portable" (= "uf"), "max" (= "opt").
+impl names: "upstream" (= "base"), "portable" (= "uf"), "cuda-kernels" (= "opt", old name "max").
 impl = "base": upstream code + upstream precision (fp32 unless the upstream demo uses AMP), default kernels.
 impl = "opt" : "max" general fast path from segmentation/fast (any size, nothing compiled / tuned per size; prebuilt custom kernels,
                fp16-accumulate cuDNN / cuBLAS where accuracy holds).
@@ -14,7 +14,7 @@ import torch
 from ..weights import fetch
 from .common import IMNET
 
-ALIASES = {"upstream": "base", "portable": "uf", "max": "opt"}
+ALIASES = {"upstream": "base", "portable": "uf", "cuda-kernels": "opt", "max": "opt"}
 
 REG = {}
 GACC = os.environ.get("SEG_GACC", "1") == "1"  # opt: fp16-accumulate GEMMs in the transformer paths (val-500 agreement >= 99.85 %)

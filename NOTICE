@@ -11,4 +11,4 @@ Third-party material:
   transformers port (Apache-2.0). It loads the gated DINOv3 checkpoints, which are covered by the DINOv3 License.
 - The CUDA extensions (*/csrc/*.cu) are compiled against NVIDIA CUTLASS headers (BSD-3-Clause), which are not bundled.
 - The cuDNN convolutions use the NVIDIA cuDNN frontend (MIT) at run time (pip: nvidia-cudnn-frontend); not bundled.
-- The ViT attention and GEMM kernels of the max tier come from fastbb (Apache-2.0, github.com/fastforks/fastbb).
+- The ViT attention and GEMM kernels of the cuda-kernels tier come from fastbb (Apache-2.0, github.com/fastforks/fastbb).

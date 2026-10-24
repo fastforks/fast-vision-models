@@ -17,7 +17,7 @@ dependencies = ["torch>=2.8", "numpy", "pillow", "huggingface_hub"]
 classification = ["timm>=1.0", "torchvision", "transformers>=4.50"]
 segmentation = ["transformers>=4.50", "timm>=1.0", "mmsegmentation==1.2.2", "mmcv==2.1.0", "mmengine", "ftfy", "regex"]
 backbones = ["timm>=1.0", "transformers>=4.56"]
-max = ["fastbb @ git+https://github.com/fastforks/fastbb", "nvidia-cudnn-frontend"]
+cuda-kernels = ["fastbb @ git+https://github.com/fastforks/fastbb", "nvidia-cudnn-frontend"]
 
 [project.urls]
 Homepage = "https://github.com/fastforks/fast-vision-models"

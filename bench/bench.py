@@ -1,6 +1,6 @@
 """Unified benchmark: one model, one tier per process.
 
-    python bench/bench.py --family cls --model resnet50 --tier max --out results/runs.jsonl
+    python bench/bench.py --family cls --model resnet50 --tier cuda-kernels --out results/runs.jsonl
     python bench/bench.py --family seg --model segformer-b0 --tier flags
     python bench/bench.py --family bb --model dinov2-vitl14 --tier portable
 
@@ -245,7 +245,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--family", required=True, choices=["cls", "seg", "bb"])
     ap.add_argument("--model", required=True)
-    ap.add_argument("--tier", required=True, choices=["upstream", "flags", "portable", "max"])
+    ap.add_argument("--tier", required=True, choices=["upstream", "flags", "portable", "cuda-kernels"])
     ap.add_argument("--n", type=int, default=0, help="timed runs (default cls 30, seg 20, bb 10)")
     ap.add_argument("--no-quality", action="store_true")
     ap.add_argument("--out")
