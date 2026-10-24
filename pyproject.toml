@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fast-vision-models"
+version = "0.1.0"
+description = "Fast PyTorch inference for classification, segmentation and backbone models: portable (ONNX/TRT-exportable) and custom-kernel paths"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "Florian Nick" }]
+requires-python = ">=3.10"
+dependencies = ["torch>=2.8", "numpy", "pillow", "huggingface_hub"]
+
+[project.optional-dependencies]
+classification = ["timm>=1.0", "torchvision", "transformers>=4.50"]
+segmentation = ["transformers>=4.50", "timm>=1.0", "mmsegmentation==1.2.2", "mmcv==2.1.0", "mmengine", "ftfy", "regex"]
+backbones = ["timm>=1.0", "transformers>=4.56"]
+max = ["fastbb @ git+https://github.com/fastforks/fastbb", "nvidia-cudnn-frontend"]
+
+[project.urls]
+Homepage = "https://github.com/fastforks/fast-vision-models"
+
+[tool.setuptools.packages.find]
+include = ["fast_vision_models*"]
+
+[tool.setuptools.package-data]
+"*" = ["*.cu", "csrc/*.cu"]
+
+# Lint only. The code is hand-formatted (aligned comments, hand-wrapped long lines): do not run `ruff format`.
+[tool.ruff]
+target-version = "py310"
+line-length = 130
+
+[tool.ruff.lint]
+select = ["E4", "E9", "F"]

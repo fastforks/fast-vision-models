@@ -1,0 +1,14 @@
+fast-vision-models
+Copyright 2026 Florian Nick. Licensed under the Apache License 2.0 (see LICENSE).
+
+No model weights, checkpoints or prebuilt binaries are included. Every checkpoint is downloaded from its official source
+at run time and keeps its own licence (docs/LICENSES.md), several of them non-commercial.
+
+Third-party material:
+- The model code is re-implemented on top of the upstream libraries it loads at run time (timm, torchvision, Hugging Face
+  transformers, mmsegmentation, DINOv2 via torch.hub); no upstream source files are copied.
+- backbones/dinov3.py is an independent implementation of the DINOv3 architecture, written against the Hugging Face
+  transformers port (Apache-2.0). It loads the gated DINOv3 checkpoints, which are covered by the DINOv3 License.
+- The CUDA extensions (*/csrc/*.cu) are compiled against NVIDIA CUTLASS headers (BSD-3-Clause), which are not bundled.
+- The cuDNN convolutions use the NVIDIA cuDNN frontend (MIT) at run time (pip: nvidia-cudnn-frontend); not bundled.
+- The ViT attention and GEMM kernels of the max tier come from fastbb (Apache-2.0, github.com/fastforks/fastbb).

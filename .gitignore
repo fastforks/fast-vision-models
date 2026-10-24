@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+*.so
+*.o
+*.cubin
+*.fatbin
+*.pth
+*.pt
+*.safetensors
+*.egg-info/
+build/
+dist/
+.venv/
+runs/
+.ruff_cache/
